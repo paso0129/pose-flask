@@ -1,0 +1,70 @@
+<html>
+
+<head>
+    <!-- Load TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet"></script>
+</head>
+
+<body>
+    <div id="container">
+        <video id="video" playsinline autoplay></video>
+        <canvas id="canvas"></canvas>
+    </div>
+</body>
+<!-- Place your code in the script tag below. You can also use an external .js file -->
+<script>
+    // Put variables in global scope to make them available to the browser console.
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    canvas.width = 480;
+    canvas.height = 360;
+    video.width = canvas.width;
+    video.height = canvas.height;
+
+    const constraints = {
+        audio: false,
+        video: true
+    };
+
+    function handleSuccess(stream) {
+        window.stream = stream; // make stream available to browser console
+        video.srcObject = stream;
+    }
+
+    function handleError(error) {
+        console.log('navigator.MediaDevices.getUserMedia error: ', error.message, error.name);
+    }
+
+    navigator.mediaDevices.getUserMedia(constraints).then(handleSuccess).catch(handleError);
+
+    // ----------- figure out pose -----------
+    setInterval(function () {
+        posenet.load().then(function (net) {
+            const pose = net.estimateSinglePose(video, {
+                flipHorizontal: true
+            });
+            return pose;
+        }).then(function (pose) {
+            // call api
+            const data = { pose: pose.keypoints };
+
+            fetch('http://127.0.0.1:5000/req', {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        })
+    }, 1500);
+</script>
+</html>
